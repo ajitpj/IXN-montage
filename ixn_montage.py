@@ -96,8 +96,9 @@ class IXN_montage:
                             yend   = (j+1)*self.imheight
                             if file_path:
                                 montage[ystart:yend, xstart:xend]=tiff.imread(file_path[0])
-                                print(f"Well {well}, position {position}, wavelength {wavelength} file found")
+                                print(f"{well}, {position}, {wavelength} file found")
                             else:
+                                print(f"{well}, {position}, {wavelength} file NOT found")
                                 montage[ystart:yend, xstart:xend]=dummy
                             
                             counter += 1
