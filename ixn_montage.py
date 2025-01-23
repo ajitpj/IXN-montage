@@ -20,6 +20,10 @@ class IXN_montage:
         self.wells = []
         self.positions = []
         self.wavelengths = []
+        self.nrows = 9
+        self.ncols = 9
+        self.imwidth = 2048
+        self.imheight = 2048
         # self.__dict__.update((key, False) for key in self.suffixes)
         # self.__dict__.update((key, value) for key, value in file_dict.items() if key in self.suffixes)
 
@@ -29,8 +33,10 @@ class IXN_montage:
         colony imaging experiment. Stored as class object attributes.
         '''
         file_list = [f.name for f in os.scandir(self.root_dir) if 'thumb' not in f.name.casefold()]
+        self.imwidth, self.imheight = tiff.imread(file_list[0]).shape
+        
         pattern = re.compile(r'_(\w\d+)_(\w\d+)_(\w\d)')
-
+        
         wells = []
         positions = []
         wavelengths = []
@@ -51,42 +57,43 @@ class IXN_montage:
         return
 
 
-    def make_montage(wells: list, positions: list, wavelengths: list, nrow: int, ncol: int):
+    def make_montage(self, ):
         '''
         Create a montage from the list of wells and wavelengths provided. 
         nrow and ncol indicate the number of rows and columns of images taken on IXN.
         Number of positions must equal nrows * ncols.
         Inputs:
-        wells     : A list of wells acquired
-        positions : A list of positions acquired
-        wavelenths: A list of wavelengths acquired
-        nrow      : number of rows 
-        ncol      : number of columns
+        
         Outputs:
         None
         '''
         try:
-            nrow * ncol = len(positions)
+            self.nrows * self.ncols == len(self.positions)
         except:
-            raise ValueError(f'{nrow} x {ncol} ~= Number of positions')
+            raise ValueError(f'{self.nrows} x {self.ncols} ~= Number of positions')
         
-        all_files = [f.name for f in os.scandir(p) if 'thumb' not in f.name.casefold()]
-        im_width, im_height = tiff.imread(all_files[0])
-        montage = np.zeros((im_width*nrow, im_height*ncol), dtype='int16')
-
-        for well in wells:
-            for wavelength in wavelengths:
-                globstr = '*_'+well+'_s*'+wavelength+'*'
-                file_list = [f for f in p.glob(globstr) if 'thumb' not in f.name.casefold()]
-                file_list = sorted(file_list, key=lambda x: int(x.name.split('_')[2][1::]))
-                counter = 0
-                for i in np.arange(9):
-                    for j in np.arange(9):
-                        xstart = i*im_width
-                        xend   = (i+1)*im_width
-                        ystart = j*im_height
-                        yend   = (j+1)*im_height
-                        montage[ystart:yend, xstart:xend]=tiff.imread(file_list[counter])
-                        counter += 1
+        dummy = np.zeros((self.imwidth, self.imheight), dtype='int16')
+        
+        for well in self.wells:
+            for wavelength in self.wavelengths:
+                montage = np.zeros((self.imwidth*self.nrows, 
+                                    self.imheight*self.ncols), dtype='int16')
+                for position in self.positions:
+                    globstr = '*_'+ well + '_' + position + '_' +wavelength + '*'
+                    file_path = [f for f in p.glob(globstr) if 'thumb' not in f.name.casefold()]
+                    
+                    counter = 0
+                    for i in np.arange(self.nrows):
+                        for j in np.arange(self.ncols):
+                            xstart = i*self.imwidth
+                            xend   = (i+1)*self.imwidth
+                            ystart = j*self.imheight
+                            yend   = (j+1)*self.imheight
+                            if file_path:
+                                montage[ystart:yend, xstart:xend]=tiff.imread(file_path[0])
+                            else:
+                                montage[ystart:yend, xstart:xend]=dummy
+                            
+                            counter += 1
 
         return
