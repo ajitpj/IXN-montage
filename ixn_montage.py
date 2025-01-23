@@ -24,41 +24,38 @@ class IXN_montage:
         self.ncols = 9
         self.imwidth = 2048
         self.imheight = 2048
+        
+        self.pattern = re.compile(r'_(\w\d+)_(\w\d+)_(\w\d)')
+        rows = ['A','B','C','D','E','F','G','H']
+        cols = [str(i).zfill(2) for i in np.arange(1,13).tolist()]
+        self.all_wells = []
+        for row in rows:
+            for col in cols:
+                self.all_wells.append(row+col)
+
+        self.all_files = []
+        self.master_dict = {}
+        self.file_list = []
         # self.__dict__.update((key, False) for key in self.suffixes)
         # self.__dict__.update((key, value) for key, value in file_dict.items() if key in self.suffixes)
 
-    def find_wells_positions(self, ):
+    def assemble_file_lists(self, ):
         '''
         Infers the number of wells, positions, and wavelengths used in the 
         colony imaging experiment. Stored as class object attributes.
         '''
-        file_list = [f.name for f in os.scandir(self.root_dir) if 'thumb' not in f.name.casefold()]
+        self.all_files = [f for f in self.root_dir.glob('*') if 'thumb' not in f.name.casefold()]
         
-        self.imwidth, self.imheight = tiff.imread(self.root_dir / Path(file_list[0])).shape
-        
-        pattern = re.compile(r'_(\w\d+)_(\w\d+)_(\w\d)')
-        
-        wells = []
-        positions = []
-        wavelengths = []
 
-        for f in file_list:
-            well, pos, wv = pattern.findall(f)[0]
-            wells.append(well)
-            positions.append(pos)
-            wavelengths.append(wv)
-
-        self.wells       = sorted(list(set(wells)))
-        self.positions   = sorted(list(set(positions)), key = lambda x: int(x[1::]))
-        self.wavelengths = sorted(list(set(wavelengths)))
-
-        print(f'Found a total of {len(self.wells)} wells, {len(self.positions)} positions, \
-              and {len(self.wavelengths)} wavelengths')
+        for well in self.all_wells:
+            well_pattern = '_'+well+'_'
+            current_list = [f for f in self.all_files if well_pattern in f.name]
+            self.master_dict[well] = current_list
 
         return
 
 
-    def make_montage(self, well: None, position: None, wavelength: None):
+    def make_montage(self, wavelength: str, well = None):
         '''
         Create a montage from the list of wells and wavelengths provided. 
         nrow and ncol indicate the number of rows and columns of images taken on IXN.
@@ -68,41 +65,35 @@ class IXN_montage:
         Outputs:
         None
         '''
-        try:
-            self.nrows * self.ncols == len(self.positions)
-        except:
-            raise ValueError(f'{self.nrows} x {self.ncols} ~= Number of positions')
-        
-        dummy = np.zeros((self.imwidth, self.imheight), dtype='int16')
-        
-        for well in self.wells:
-            for wavelength in self.wavelengths:
-                print(f"Now processing {wavelength} for {well}")
+        if not well:
+            wells = self.master_dict.keys()
+            
+        for well in wells:
+            print(f"Now processing {wavelength} for {well}")
+            
+            montage = np.zeros((self.imwidth*self.nrows, 
+                                self.imheight*self.ncols), dtype='int16')
+            
+            wavelength_pattern = '_' + wavelength
+            
+            self.file_list = [f for f in self.master_dict[well] if wavelength_pattern in f.name]
+            self.file_list = list(set(self.file_list))
+            self.file_list = sorted(self.file_list, key=lambda x: int(self.pattern.findall(x.name)[0][1].split('s')[-1]))
 
-                
-                montage = np.zeros((self.imwidth*self.nrows, 
-                                    self.imheight*self.ncols), dtype='int16')
-                
-                for position in self.positions:
-                    globstr = '*_'+ well + '_' + position + '_' +wavelength + '*'
-                    file_path = [f for f in p.glob(globstr) if 'thumb' not in f.name.casefold()]
-                    
-                    counter = 0
-                    for i in np.arange(self.nrows):
-                        for j in np.arange(self.ncols):
-                            xstart = i*self.imwidth
-                            xend   = (i+1)*self.imwidth
-                            ystart = j*self.imheight
-                            yend   = (j+1)*self.imheight
-                            if file_path:
-                                montage[ystart:yend, xstart:xend]=tiff.imread(file_path[0])
-                                print(f"{well}, {position}, {wavelength} file found")
-                            else:
-                                print(f"{well}, {position}, {wavelength} file NOT found")
-                                montage[ystart:yend, xstart:xend]=dummy
-                            
-                            counter += 1
+            for file in self.file_list:
 
-                tiff.imwrite(self.root_dir / Path(well+'_'+wavelength+'.tif'), montage)
+                numerical_position = self.pattern.findall(file.name)[0][1].split('s')[-1]
+
+                i = (int(numerical_position) - 1) % self.ncols
+                j = (int(numerical_position) - 1) // self.nrows
+                xstart = i*self.imwidth
+                xend   = (i+1)*self.imwidth
+                ystart = j*self.imheight
+                yend   = (j+1)*self.imheight
+
+                montage[ystart:yend, xstart:xend]=tiff.imread(file)
+
+            # tiff.imwrite(well+'_'+wavelength+'.tif', self.montage)
+            tiff.imwrite(self.root_dir / Path(well+'_'+wavelength+'.tif'), montage)
 
         return
