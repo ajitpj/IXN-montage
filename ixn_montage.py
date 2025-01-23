@@ -33,7 +33,8 @@ class IXN_montage:
         colony imaging experiment. Stored as class object attributes.
         '''
         file_list = [f.name for f in os.scandir(self.root_dir) if 'thumb' not in f.name.casefold()]
-        self.imwidth, self.imheight = tiff.imread(file_list[0]).shape
+        
+        self.imwidth, self.imheight = tiff.imread(self.root_dir / Path(file_list[0])).shape
         
         pattern = re.compile(r'_(\w\d+)_(\w\d+)_(\w\d)')
         
