@@ -48,7 +48,7 @@ class IXN_montage:
             positions.append(pos)
             wavelengths.append(wv)
 
-        self.wells = list(set(wells))
+        self.wells       = sorted(list(set(wells)))
         self.positions   = sorted(list(set(positions)), key = lambda x: int(x[1::]))
         self.wavelengths = sorted(list(set(wavelengths)))
 
@@ -58,7 +58,7 @@ class IXN_montage:
         return
 
 
-    def make_montage(self, ):
+    def make_montage(self, well: None, position: None, wavelength: None):
         '''
         Create a montage from the list of wells and wavelengths provided. 
         nrow and ncol indicate the number of rows and columns of images taken on IXN.
@@ -79,8 +79,10 @@ class IXN_montage:
             for wavelength in self.wavelengths:
                 print(f"Now processing {wavelength} for {well}")
 
+                
                 montage = np.zeros((self.imwidth*self.nrows, 
                                     self.imheight*self.ncols), dtype='int16')
+                
                 for position in self.positions:
                     globstr = '*_'+ well + '_' + position + '_' +wavelength + '*'
                     file_path = [f for f in p.glob(globstr) if 'thumb' not in f.name.casefold()]
@@ -94,11 +96,12 @@ class IXN_montage:
                             yend   = (j+1)*self.imheight
                             if file_path:
                                 montage[ystart:yend, xstart:xend]=tiff.imread(file_path[0])
+                                print(f"Well {well}, position {position}, wavelength {wavelength} file found")
                             else:
                                 montage[ystart:yend, xstart:xend]=dummy
                             
                             counter += 1
-                            
+
                 tiff.imwrite(self.root_dir / Path(well+'_'+wavelength+'.tif'), montage)
 
         return
