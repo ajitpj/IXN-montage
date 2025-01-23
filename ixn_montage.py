@@ -77,6 +77,8 @@ class IXN_montage:
         
         for well in self.wells:
             for wavelength in self.wavelengths:
+                print(f"Now processing {wavelength} for {well}")
+
                 montage = np.zeros((self.imwidth*self.nrows, 
                                     self.imheight*self.ncols), dtype='int16')
                 for position in self.positions:
@@ -96,5 +98,7 @@ class IXN_montage:
                                 montage[ystart:yend, xstart:xend]=dummy
                             
                             counter += 1
+                            
+                tiff.imwrite(self.root_dir / Path(well+'_'+wavelength+'.tif'), montage)
 
         return
