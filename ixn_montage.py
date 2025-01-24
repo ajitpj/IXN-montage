@@ -55,7 +55,7 @@ class IXN_montage:
         return
 
 
-    def make_montage(self, wavelength: str, well = None):
+    def make_montage(self, wavelength: str, well_list = None):
         '''
         Create a montage from the list of wells and wavelengths provided. 
         nrow and ncol indicate the number of rows and columns of images taken on IXN.
@@ -65,10 +65,10 @@ class IXN_montage:
         Outputs:
         None
         '''
-        if not well:
-            wells = self.master_dict.keys()
+        if not well_list:
+            well_list = self.master_dict.keys()
             
-        for well in wells:
+        for well in well_list:
             print(f"Now processing {wavelength} for {well}")
             
             montage = np.zeros((self.imwidth*self.nrows, 

@@ -5,5 +5,5 @@ root_folder = Path('/Volumes/SharedHITSX/cdb-Joglekar-Lab-GL/Ajit_Joglekar/20250
 
 montage = IXN_montage(root_folder=root_folder)
 montage.assemble_file_lists()
-montage.make_montage('w1')
+# montage.make_montage('w1')
 # montage.make_montage('w2')
