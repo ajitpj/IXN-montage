@@ -1,14 +1,12 @@
 import re
-import os
-from pathlib import Path
+from pathlib import Path, PurePath
 import tifffile as tiff
 import numpy as np
-import napari
 
 
-p = Path('/Users/ajitj/Desktop/Timepoint_1')
 
 class IXN_montage:
+    
     def __init__(self, root_folder: Path):
         '''
         Object initializes with default parameter values and definitions of 
@@ -16,7 +14,12 @@ class IXN_montage:
         intensity or background in their names as the corresponding, channel-
         specific correction maps.
         '''
-        self.root_dir = root_folder
+        try:
+            isinstance(root_folder, PurePath)
+            self.root_dir = root_folder
+        except:
+            raise TypeError(f"{root_folder} not a valid Path")
+        
         self.wells = []
         self.positions = []
         self.wavelengths = []
@@ -35,9 +38,6 @@ class IXN_montage:
 
         self.all_files = []
         self.master_dict = {}
-        self.file_list = []
-        # self.__dict__.update((key, False) for key in self.suffixes)
-        # self.__dict__.update((key, value) for key, value in file_dict.items() if key in self.suffixes)
 
     def assemble_file_lists(self, ):
         '''
@@ -55,16 +55,17 @@ class IXN_montage:
         return
 
 
-    def make_montage(self, wavelength: str, well_list = None):
+    def make_montage(self, wavelength: str, well_list = None, save_path = None):
         '''
         Create a montage from the list of wells and wavelengths provided. 
         nrow and ncol indicate the number of rows and columns of images taken on IXN.
         Number of positions must equal nrows * ncols.
         Inputs:
-        
+        wavelength: Specify as 'w1', 'w2', etc/
         Outputs:
         None
         '''
+
         if not well_list:
             well_list = self.master_dict.keys()
             
@@ -76,24 +77,37 @@ class IXN_montage:
             
             wavelength_pattern = '_' + wavelength
             
-            self.file_list = [f for f in self.master_dict[well] if wavelength_pattern in f.name]
-            self.file_list = list(set(self.file_list))
-            self.file_list = sorted(self.file_list, key=lambda x: int(self.pattern.findall(x.name)[0][1].split('s')[-1]))
+            file_list = [f for f in self.master_dict[well] if wavelength_pattern in f.name]
 
-            for file in self.file_list:
+            if file_list:
+                file_list = list(set(file_list))
+                # The complicated RE is required to break up the filename and extract well, position and wavelength
+                # designations. The key sorts the filenames by the digits in the positoin designation.
+                file_list = sorted(file_list, 
+                                        key=lambda x: int(self.pattern.findall(x.name)[0][1].split('s')[-1]))
 
-                numerical_position = self.pattern.findall(file.name)[0][1].split('s')[-1]
+                for file in file_list:
 
-                i = (int(numerical_position) - 1) % self.ncols
-                j = (int(numerical_position) - 1) // self.nrows
-                xstart = i*self.imwidth
-                xend   = (i+1)*self.imwidth
-                ystart = j*self.imheight
-                yend   = (j+1)*self.imheight
+                    numerical_position = self.pattern.findall(file.name)[0][1].split('s')[-1]
 
-                montage[ystart:yend, xstart:xend]=tiff.imread(file)
+                    i = (int(numerical_position) - 1) % self.ncols
+                    j = (int(numerical_position) - 1) // self.nrows
+                    xstart = i*self.imwidth
+                    xend   = (i+1)*self.imwidth
+                    ystart = j*self.imheight
+                    yend   = (j+1)*self.imheight
 
-            # tiff.imwrite(well+'_'+wavelength+'.tif', self.montage)
-            tiff.imwrite(self.root_dir / Path(well+'_'+wavelength+'.tif'), montage)
+                    montage[ystart:yend, xstart:xend]=tiff.imread(file)
+
+                # tiff.imwrite(well+'_'+wavelength+'.tif', self.montage)
+                if not save_path:
+                    tiff.imwrite(self.root_dir / Path(well+'_'+wavelength+'.tif'), montage)
+                else:
+                    if isinstance(save_path, PurePath):
+                        tiff.imwrite(save_path / Path(well+'_'+wavelength+'.tif'), montage)
+                    else:
+                        print("Save path not a valid Path object")
+            else:
+                print(f"No files found for {wavelength} and/or {well}")
 
         return
